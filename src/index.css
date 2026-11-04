@@ -1,0 +1,73 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap");
+
+@import "tailwindcss";
+
+:root {
+  font-family: "DM Sans", sans-serif;
+  color: #f8fafc;
+  background: #080d1b;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  text-decoration: none;
+}
+
+::selection {
+  background: #6366f1;
+  color: white;
+}
+
+.font-display {
+  font-family: "Outfit", sans-serif;
+}
+
+.page-background {
+  background:
+    radial-gradient(
+      ellipse at 15% 15%,
+      rgba(79, 70, 229, 0.19),
+      transparent 38%
+    ),
+    radial-gradient(
+      ellipse at 85% 75%,
+      rgba(6, 182, 212, 0.12),
+      transparent 38%
+    ),
+    #080d1b;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  transition: background-color 5000s ease-in-out 0s;
+}
