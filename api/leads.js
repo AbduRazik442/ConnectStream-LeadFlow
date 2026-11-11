@@ -6,8 +6,8 @@ dotenv.config({
   path: path.resolve(process.cwd(), ".env.local"),
 });
 
-export default async function handler(req, res) {
 
+export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
       success: false,
@@ -72,66 +72,41 @@ export default async function handler(req, res) {
       });
     }
 
-    // Validate optional website
-    if (website && website.trim()) {
-      let parsedUrl;
+    // Get n8n Production Webhook URL
+    const webhookUrl = process.env.N8N_WEBHOOK_URL;
 
-      try {
-        parsedUrl = new URL(website.trim());
-      } catch {
-        return res.status(400).json({
-          success: false,
-          message: "Please enter a valid website URL.",
-        });
-      }
-
-      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        return res.status(400).json({
-          success: false,
-          message: "Website must use HTTP or HTTPS.",
-        });
-      }
+    if (!webhookUrl) {
+      throw new Error("n8n webhook URL is not configured.");
     }
 
-    const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
-    const apiSecret = process.env.LEAD_API_SECRET;
+    // Convert React field names to n8n field names
+    const leadData = {
+      name: fullName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      company: companyName.trim(),
+      industry: industry.trim(),
+      service: service.trim(),
+      website:
+        typeof website === "string" ? website.trim() : "",
+      message:
+        typeof message === "string" ? message.trim() : "",
+      created_at: new Date().toISOString(),
+    };
 
-    if (!scriptUrl || !apiSecret) {
-      throw new Error("Server integration is not configured.");
-    }
-
-    // Send data to Google Apps Script
-    const googleResponse = await fetch(scriptUrl, {
+    // Send lead to n8n
+    const n8nResponse = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        fullName: fullName.trim(),
-        companyName: companyName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        website: website?.trim() || "",
-        industry: industry.trim(),
-        service: service.trim(),
-        message:
-          typeof message === "string" ? message.trim() : "",
-        secret: apiSecret,
-      }),
+      body: JSON.stringify(leadData),
     });
 
-    const responseText = await googleResponse.text();
-    console.log("GOOGLE RAW RESPONSE:", responseText.slice(0, 1000));
+    const responseText = await n8nResponse.text();
 
-    console.log("Google response status:", googleResponse.status);
-    console.log(
-      "Google response content type:",
-      googleResponse.headers.get("content-type")
-    );
-    console.log(
-      "Google response body:",
-      responseText.slice(0, 2000)
-    );
+    console.log("n8n response status:", n8nResponse.status);
+    console.log("n8n response:", responseText.slice(0, 1000));
 
     let result;
 
@@ -139,13 +114,13 @@ export default async function handler(req, res) {
       result = JSON.parse(responseText);
     } catch {
       throw new Error(
-        "Google Apps Script returned non-JSON content."
+        "n8n returned an unexpected response. Check the Respond to Webhook node."
       );
     }
 
-    if (!googleResponse.ok || !result.success) {
+    if (!n8nResponse.ok || result.success !== true) {
       throw new Error(
-        result.message || "Google Sheets submission failed."
+        result.message || "Unable to save lead through n8n."
       );
     }
 
@@ -153,6 +128,7 @@ export default async function handler(req, res) {
       success: true,
       message: "Your inquiry has been submitted successfully.",
     });
+
   } catch (error) {
     console.error("Lead submission error:", error.message);
 
