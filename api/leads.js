@@ -1,11 +1,3 @@
-import process from "node:process";
-import path from "node:path";
-import dotenv from "dotenv";
-
-dotenv.config({
-  path: path.resolve(process.cwd(), ".env.local"),
-});
-
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -30,7 +22,10 @@ export default async function handler(req, res) {
     // Validate required fields
     if (
       ![fullName, companyName, email, phone, industry, service]
-        .every((value) => typeof value === "string" && value.trim())
+        .every(
+          (value) =>
+            typeof value === "string" && value.trim()
+        )
     ) {
       return res.status(400).json({
         success: false,
@@ -90,20 +85,22 @@ export default async function handler(req, res) {
       throw new Error("n8n webhook URL is not configured.");
     }
 
-    // Prepare data for n8n
+    // Prepare lead data for n8n
     const leadData = {
       name: fullName.trim(),
       email: email.trim(),
       phone: phone.trim(),
       company: companyName.trim(),
-      message: typeof message === "string" ? message.trim() : "",
+      message:
+        typeof message === "string" ? message.trim() : "",
       service: service.trim(),
       website: website?.trim() || "",
-      industry: industry.trim(),
       created_at: new Date().toISOString(),
     };
 
-    // Send data to n8n
+    console.log("Sending lead to n8n");
+
+    // Send lead to n8n
     const n8nResponse = await fetch(webhookUrl, {
       method: "POST",
       headers: {
@@ -115,19 +112,19 @@ export default async function handler(req, res) {
     const responseText = await n8nResponse.text();
 
     console.log("n8n response status:", n8nResponse.status);
-    console.log("n8n response:", responseText.slice(0, 1000));
+    console.log("n8n response body:", responseText.slice(0, 1000));
 
-    let result = {};
+    let result;
 
     try {
-      result = responseText ? JSON.parse(responseText) : {};
+      result = JSON.parse(responseText);
     } catch {
       throw new Error("n8n returned an invalid response.");
     }
 
     if (!n8nResponse.ok || result.success === false) {
       throw new Error(
-        result.message || "Unable to submit your inquiry."
+        result.message || "n8n lead submission failed."
       );
     }
 
@@ -137,7 +134,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error("Lead submission error:", error);
+    console.error("Lead submission error:", error.message);
 
     return res.status(500).json({
       success: false,
