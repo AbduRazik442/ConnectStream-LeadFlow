@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log("LEADFLOW_N8N_VERSION_2");
     const {
       fullName,
       companyName,
