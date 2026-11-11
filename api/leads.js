@@ -29,18 +29,8 @@ export default async function handler(req, res) {
 
     // Validate required fields
     if (
-      typeof fullName !== "string" ||
-      typeof companyName !== "string" ||
-      typeof email !== "string" ||
-      typeof phone !== "string" ||
-      typeof industry !== "string" ||
-      typeof service !== "string" ||
-      !fullName.trim() ||
-      !companyName.trim() ||
-      !email.trim() ||
-      !phone.trim() ||
-      !industry.trim() ||
-      !service.trim()
+      ![fullName, companyName, email, phone, industry, service]
+        .every((value) => typeof value === "string" && value.trim())
     ) {
       return res.status(400).json({
         success: false,
@@ -72,6 +62,27 @@ export default async function handler(req, res) {
       });
     }
 
+    // Validate optional website
+    if (website && website.trim()) {
+      let parsedUrl;
+
+      try {
+        parsedUrl = new URL(website.trim());
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: "Please enter a valid website URL.",
+        });
+      }
+
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return res.status(400).json({
+          success: false,
+          message: "Website must use HTTP or HTTPS.",
+        });
+      }
+    }
+
     // Get n8n Production Webhook URL
     const webhookUrl = process.env.N8N_WEBHOOK_URL;
 
@@ -79,22 +90,20 @@ export default async function handler(req, res) {
       throw new Error("n8n webhook URL is not configured.");
     }
 
-    // Convert React field names to n8n field names
+    // Prepare data for n8n
     const leadData = {
       name: fullName.trim(),
       email: email.trim(),
       phone: phone.trim(),
       company: companyName.trim(),
-      industry: industry.trim(),
+      message: typeof message === "string" ? message.trim() : "",
       service: service.trim(),
-      website:
-        typeof website === "string" ? website.trim() : "",
-      message:
-        typeof message === "string" ? message.trim() : "",
+      website: website?.trim() || "",
+      industry: industry.trim(),
       created_at: new Date().toISOString(),
     };
 
-    // Send lead to n8n
+    // Send data to n8n
     const n8nResponse = await fetch(webhookUrl, {
       method: "POST",
       headers: {
@@ -108,19 +117,17 @@ export default async function handler(req, res) {
     console.log("n8n response status:", n8nResponse.status);
     console.log("n8n response:", responseText.slice(0, 1000));
 
-    let result;
+    let result = {};
 
     try {
-      result = JSON.parse(responseText);
+      result = responseText ? JSON.parse(responseText) : {};
     } catch {
-      throw new Error(
-        "n8n returned an unexpected response. Check the Respond to Webhook node."
-      );
+      throw new Error("n8n returned an invalid response.");
     }
 
-    if (!n8nResponse.ok || result.success !== true) {
+    if (!n8nResponse.ok || result.success === false) {
       throw new Error(
-        result.message || "Unable to save lead through n8n."
+        result.message || "Unable to submit your inquiry."
       );
     }
 
@@ -130,7 +137,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error("Lead submission error:", error.message);
+    console.error("Lead submission error:", error);
 
     return res.status(500).json({
       success: false,
